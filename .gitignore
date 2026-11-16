@@ -1,0 +1,21 @@
+# Dados do desafio: NUNCA no repositório
+data/
+*.mp4
+*.csv
+*.txt
+*.xml
+evaluation/results/
+evaluation/reports/
+
+# Ambiente
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+
+# Exceções (arquivos de texto nossos)
+!requirements.txt
+
+# visualizacoes derivadas da partida - NUNCA subir
+*.gif
+*.png
+*.pyc

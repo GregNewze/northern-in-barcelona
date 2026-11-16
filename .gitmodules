@@ -1,0 +1,4 @@
+[submodule "oficial"]
+	path = oficial
+	url = https://github.com/GregNewze/more-than-a-hack-2027.git
+	branch = main
