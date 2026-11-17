@@ -201,13 +201,10 @@ def main():
 
     stats11 = V11.stats(lab11, graded)
     stats12 = V11.stats(labels, graded)
-    gt = pm.label_codes(pm.read_label_csv(os.path.join(oficial, "evaluation", "gt",
-                                                       "BAR-ATH_possession_gt_public.csv")))
-    r11 = pm.evaluate(gt, pm.label_codes(lab11))
-    r12 = pm.evaluate(gt, pm.label_codes(labels))
-    print("\n%-6s | %6s | %8s | %6s | %s" % ("", "posses", "dur med", "D%", "5 min publicos (so checagem, ruido ~0,35)"))
-    print("%-6s | %6d | %7.1fs | %5.1f%% | spellF1 %.4f  macroF1 %.4f" % (("v1.11",) + stats11 + (r11["spell_f1_mean"], r11["macro_f1"])))
-    print("%-6s | %6d | %7.1fs | %5.1f%% | spellF1 %.4f  macroF1 %.4f" % (("v1.12",) + stats12 + (r12["spell_f1_mean"], r12["macro_f1"])))
+    # Sem nota publica aqui: o gabarito dos 5 min nao serve para comparar versoes (EVALUATION.md).
+    print("\n%-6s | %6s | %8s | %6s" % ("", "posses", "dur med", "D%"))
+    print("%-6s | %6d | %7.1fs | %5.1f%%" % (("v1.11",) + stats11))
+    print("%-6s | %6d | %7.1fs | %5.1f%%" % (("v1.12",) + stats12))
 
 
 if __name__ == "__main__":

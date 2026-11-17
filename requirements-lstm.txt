@@ -1,0 +1,5 @@
+# Opcional: so para o experimento informativo do Bi-LSTM (src/posse_lstm.py, src/v1_13.py,
+# analises/lstm_posse_idsse.py). O CSV entregue NAO depende disto.
+-r requirements.txt
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu

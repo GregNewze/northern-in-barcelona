@@ -243,14 +243,10 @@ def main():
         erro = pm.validate_submission(pm.read_label_csv(destino), len(labels))
         print(f"\ngerado: {destino}  (validacao oficial: {'ok' if erro is None else erro})")
 
-    gt = pm.label_codes(pm.read_label_csv(os.path.join(oficial, "evaluation", "gt",
-                                                       "BAR-ATH_possession_gt_public.csv")))
-    r = pm.evaluate(gt, pm.label_codes(labels))
     posses, dur, dpct = stats(labels, graded)
     seg = labels[FAQ_BOLA_MORTA[0]:FAQ_BOLA_MORTA[1] + 1]
     print(f"\njogo todo avaliado: {posses} posses | duracao media {dur:.1f}s | D {dpct:.1f}%")
     print(f"bloco do FAQ: D={int(np.sum(seg == 'D'))}/{len(seg)}")
-    print(f"5 min publicos (so checagem de pipeline, nao escolha): spellF1 {r['spell_f1_mean']:.4f} | macroF1 {r['macro_f1']:.4f}")
 
 
 if __name__ == "__main__":

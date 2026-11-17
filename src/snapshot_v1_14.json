@@ -1,0 +1,13 @@
+{
+  "sha256": "ebffdd9701ac867904dda9e9e61773ebb7b076bfa91591b19b4b26be30f9fb9a",
+  "sha256_modelo_sinais": "472ce7f27949033a469961a76dc775845484c5c76c06e22eea01e7d40c59d73a",
+  "sumicos_decididos": 58,
+  "decididos_D_H_A": [
+    18,
+    15,
+    25
+  ],
+  "posses_avaliadas": 295,
+  "duracao_media_s": 13.973,
+  "D_pct_avaliado": 35.128
+}

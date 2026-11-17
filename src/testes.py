@@ -303,9 +303,6 @@ class TestJogoReal(unittest.TestCase):
         cls.tmp = tempfile.mkdtemp(prefix="nib_testes_")
         cls.csv = os.path.join(cls.tmp, "v1_11_teste.csv")
         baseline.write_submission(cls.csv, cls.labels)
-        cls.gt = pm.label_codes(pm.read_label_csv(
-            os.path.join(cls.oficial, "evaluation", "gt", "BAR-ATH_possession_gt_public.csv")))
-        cls.res = pm.evaluate(cls.gt, pm.label_codes(cls.labels))
 
     @classmethod
     def tearDownClass(cls):
@@ -335,8 +332,8 @@ class TestJogoReal(unittest.TestCase):
         r = subprocess.run([sys.executable, "run_evaluation.py", "--results", res_dir, "--out", out_dir,
                             "--bootstrap", "1000", "--no-detail"],
                            cwd=os.path.join(self.oficial, "evaluation"), capture_output=True, text=True)
-        print("\n" + r.stdout[-3000:] + r.stderr[-2000:])
-        self.assertEqual(r.returncode, 0, "run_evaluation.py falhou ou pulou o arquivo")
+        # so confere que o avaliador oficial aceita e roda o CSV; a nota nao e mostrada
+        self.assertEqual(r.returncode, 0, "run_evaluation.py falhou ou pulou o arquivo: " + r.stderr[-2000:])
 
     # ---------- regras ----------
     def test_05_bloco_do_FAQ_todo_D(self):
@@ -404,8 +401,6 @@ class TestJogoReal(unittest.TestCase):
             "duracao_media_s": round(dur, 3),
             "D_pct_avaliado": round(float(np.mean(self.labels[self.graded] == "D")) * 100, 3),
             "posses_por_min_vivo": round(posses / (vivo.sum() / self.fps / 60), 3),
-            "spellF1_publico": round(float(self.res["spell_f1_mean"]), 4),
-            "macroF1_publico": round(float(self.res["macro_f1"]), 4),
         }
 
     def test_13_snapshot(self):
@@ -584,23 +579,19 @@ class TestJogoRealV12(unittest.TestCase):
             de_novo = V12.gerar_labels(self.oficial)
         self.assertTrue(np.array_equal(de_novo, self.labels))
 
-    def test_07_avaliador_oficial_v1_11_e_v1_12(self):
+    def test_07_avaliador_oficial_roda_na_candidata(self):
+        """So confere que o avaliador oficial aceita e roda o CSV. Nao compara versoes."""
         res_dir = os.path.join(self.tmp, "results")
         os.makedirs(res_dir, exist_ok=True)
         shutil.copy(self.csv, os.path.join(res_dir, "v1_12.csv"))
-        self.baseline.write_submission(os.path.join(res_dir, "v1_11.csv"), self.et["labels_v1_11"])
         r = subprocess.run([sys.executable, "run_evaluation.py", "--results", res_dir, "--out",
                             os.path.join(self.tmp, "out"), "--bootstrap", "1000", "--no-detail"],
                            cwd=os.path.join(self.oficial, "evaluation"), capture_output=True, text=True)
-        print("\n" + r.stdout[-3000:] + r.stderr[-2000:])
-        self.assertEqual(r.returncode, 0)
+        self.assertEqual(r.returncode, 0, r.stderr[-2000:])
 
     def metricas(self):
         posses, dur = posses_e_duracao(self.labels, self.graded, self.fps)
         vivo = self.graded & np.isin(self.labels, ["H", "A"])
-        gt = self.pm.label_codes(self.pm.read_label_csv(
-            os.path.join(self.oficial, "evaluation", "gt", "BAR-ATH_possession_gt_public.csv")))
-        res = self.pm.evaluate(gt, self.pm.label_codes(self.labels))
         return {
             "sha256": hashlib.sha256("".join(self.labels.tolist()).encode()).hexdigest(),
             "corte_ms": round(float(self.et["corte"]), 4),
@@ -610,8 +601,6 @@ class TestJogoRealV12(unittest.TestCase):
             "duracao_media_s": round(dur, 3),
             "D_pct_avaliado": round(float(np.mean(self.labels[self.graded] == "D")) * 100, 3),
             "posses_por_min_vivo": round(posses / (vivo.sum() / self.fps / 60), 3),
-            "spellF1_publico": round(float(res["spell_f1_mean"]), 4),
-            "macroF1_publico": round(float(res["macro_f1"]), 4),
         }
 
     def test_08_snapshot_v1_12(self):
@@ -627,6 +616,131 @@ class TestJogoRealV12(unittest.TestCase):
         print("\n  RESUMO v1_12")
         for k, val in self.metricas().items():
             print("   %-22s %s" % (k, val))
+
+
+SNAPSHOT_V14 = os.path.join(AQUI, "snapshot_v1_14.json")
+MODELO_SINAIS = os.path.join(AQUI, "modelo_sinais.json")
+SHA_SINAIS_PRE_REGISTRO = "93536efcfec48ebd73bac9ade4f6d7b97b038153b4728805e61cf4063d8e5ff5"  # REGISTRO #11
+
+
+def sha256_arquivo(p):
+    with open(p, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
+
+
+class TestModeloSinais(unittest.TestCase):
+    """Pesos exportados do experimento aprovado (analises/sinais_jogadores_idsse.py)."""
+
+    def test_01_existe_e_tem_os_sinais_certos(self):
+        with open(MODELO_SINAIS) as f:
+            m = json.load(f)
+        self.assertEqual(m["p1"]["sinais"], ["intensidade", "sprint", "queda", "agrupamento",
+                                             "convergencia", "na_linha", "area"])
+        self.assertEqual(m["p2"]["sinais"][-1], "ultimo_time")
+        for k in ("p1", "p2"):
+            self.assertEqual(len(m[k]["w"]), len(m[k]["sinais"]) + 1)
+
+    def test_02_logit_zero_e_prob_meio(self):
+        import v1_14 as V14
+        p = dict(mu=[0.0], sd=[1.0], w=[1.0, 0.0])
+        self.assertGreater(V14.score(p, [0.1]), 0)      # prob > 0,5
+        self.assertLess(V14.score(p, [-0.1]), 0)
+        self.assertEqual(V14.score(p, [0.0]), 0.0)      # prob = 0,5 exato -> nao e "> 0"
+
+
+class TestJogoRealV14(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        if not os.environ.get("OFICIAL"):
+            raise unittest.SkipTest("sem --oficial: testes do jogo real (v1.14) pulados")
+        import v1_14 as V14
+        cls.V14 = V14
+        cls.oficial = N.preparar_caminhos(os.environ["OFICIAL"])
+        import baseline
+        import possession_metrics as pm
+        cls.baseline, cls.pm = baseline, pm
+        print("\n[setup v1.14] gerando rotulos ...")
+        cls.labels, cls.et = V14.gerar_labels(cls.oficial, devolver_etapas=True)
+        cls.graded = cls.et["graded"]
+        cls.tmp = tempfile.mkdtemp(prefix="nib_testes14_")
+        cls.csv = os.path.join(cls.tmp, "v1_14_teste.csv")
+        baseline.write_submission(cls.csv, cls.labels)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def test_01_validador_oficial(self):
+        r = subprocess.run([sys.executable, os.path.join(self.oficial, "evaluation", "validate_submission.py"),
+                            self.csv], cwd=self.oficial, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertTrue(r.stdout.startswith("OK"))
+
+    def test_02_FAQ_todo_D_e_sem_X_avaliado(self):
+        self.assertTrue(np.all(self.labels[FAQ[0]:FAQ[1] + 1] == "D"))
+        self.assertEqual(int(np.sum(self.labels[self.graded] == "X")), 0)
+
+    def test_03_preenche_e_parada_3s_iguais_aos_antigos(self):
+        """Saida FINAL com 3,0 s / 3,0 s identica a com os valores antigos 2,6 s / 0,5 s.
+        (Na etapa intermediaria a parada muda 22 frames de sumicos < 1 s, que o decidir_sumicos
+        devolve a continuacao; no rotulo final nada muda.)"""
+        antigo = (self.V14.PREENCHE_S, self.V14.PARADA_S)
+        try:
+            self.V14.PREENCHE_S, self.V14.PARADA_S = 2.6, 0.5
+            velho = self.V14.gerar_labels(self.oficial)
+        finally:
+            self.V14.PREENCHE_S, self.V14.PARADA_S = antigo
+        self.assertTrue(np.array_equal(velho, self.labels))
+
+    def test_07_script_dos_sinais_e_o_pre_registrado(self):
+        """O modulo de sinais usado pela v1.14 e o mesmo arquivo pre-registrado (REGISTRO #11)."""
+        p = os.path.join(os.path.dirname(AQUI), "analises", "sinais_jogadores_idsse.py")
+        self.assertEqual(sha256_arquivo(p), SHA_SINAIS_PRE_REGISTRO)
+
+    def test_04_so_muda_dentro_dos_sumicos_decididos(self):
+        dentro = np.zeros(len(self.labels), bool)
+        for a, b, _ in self.et["decisoes"]:
+            dentro[a:b + 1] = True
+        dif = self.labels != self.et["antes_dos_jogadores"]
+        self.assertFalse(np.any(dif & ~dentro), "mudou frame fora dos sumicos decididos pelos jogadores")
+        for a, b, t in self.et["decisoes"]:
+            self.assertTrue(np.all(self.labels[a:b + 1] == t))
+
+    def test_05_deterministico_e_sem_gabarito(self):
+        abrir = builtins.open
+
+        def guarda(file, *a, **k):
+            s = str(file)
+            if "possession_gt" in s or (os.sep + "gt" + os.sep) in s:
+                raise AssertionError("o pipeline tentou abrir o gabarito: " + s)
+            return abrir(file, *a, **k)
+        with mock.patch("builtins.open", guarda), \
+                mock.patch.object(self.pm, "read_label_csv", side_effect=AssertionError("pipeline leu o gabarito")):
+            de_novo = self.V14.gerar_labels(self.oficial)
+        self.assertTrue(np.array_equal(de_novo, self.labels), "segunda execucao deu resultado diferente")
+
+    def metricas(self):
+        posses, dur = posses_e_duracao(self.labels, self.graded, 25)
+        dec = self.et["decisoes"]
+        return {
+            "sha256": hashlib.sha256("".join(self.labels.tolist()).encode()).hexdigest(),
+            "sha256_modelo_sinais": sha256_arquivo(MODELO_SINAIS),
+            "sumicos_decididos": len(dec),
+            "decididos_D_H_A": [sum(1 for *_, t in dec if t == x) for x in "DHA"],
+            "posses_avaliadas": posses,
+            "duracao_media_s": round(dur, 3),
+            "D_pct_avaliado": round(float(np.mean(self.labels[self.graded] == "D")) * 100, 3),
+        }
+
+    def test_06_snapshot_v1_14(self):
+        m = self.metricas()
+        if not os.path.exists(SNAPSHOT_V14) or os.environ.get("ATUALIZAR_SNAPSHOT") == "1":
+            with open(SNAPSHOT_V14, "w") as f:
+                json.dump(m, f, indent=2)
+            self.skipTest("snapshot gravado em src/snapshot_v1_14.json (proximas rodadas comparam com ele)")
+        with open(SNAPSHOT_V14) as f:
+            self.assertEqual(m, json.load(f), "a saida da v1.14 (ou o modelo de sinais) mudou")
 
 
 if __name__ == "__main__":

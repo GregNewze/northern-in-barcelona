@@ -14,6 +14,7 @@ __pycache__/
 
 # Exceções (arquivos de texto nossos)
 !requirements.txt
+!requirements-lstm.txt
 
 # visualizacoes derivadas da partida - NUNCA subir
 *.gif

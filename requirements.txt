@@ -1,0 +1,7 @@
+# Versoes fixadas do ambiente que gerou o CSV entregue (Python 3.12).
+# O pipeline final (src/v1_14.py) so precisa destas.
+numpy==2.5.5
+pandas==3.1.1
+lxml==6.1.3
+# kloppy: so para baixar/ler os jogos abertos do IDSSE nas analises (analises/*idsse*.py)
+kloppy==3.19.1

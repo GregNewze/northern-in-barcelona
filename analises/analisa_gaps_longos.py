@@ -13,7 +13,7 @@ Pergunta: os sumicos SEM set piece (sobretudo os longos) se parecem com JOGO ou 
 Tambem roda uma ABLACAO: liga/desliga o "preenche sumico <= 2,6 s" e conta quantos frames
 mudam. Se for 0, o passo nao faz nada.
 
-Nada aqui le o gabarito, exceto a ablacao, que imprime o spellF1 publico so como checagem.
+Nada aqui le o gabarito.
 
 Uso:
     python analises/analisa_gaps_longos.py
@@ -119,8 +119,6 @@ def main():
     com = pipeline(2.6)
     sem = pipeline(0.0)
     assert np.array_equal(com, labels), "reconstrucao do pipeline nao bate com a v1_11 (!!)"
-    gt = pm.label_codes(pm.read_label_csv(os.path.join(oficial, "evaluation", "gt",
-                                                       "BAR-ATH_possession_gt_public.csv")))
     print("\n" + "=" * 78)
     print("0. ABLACAO: o 'preenche sumico <= 2,6 s' faz alguma coisa?")
     print("=" * 78)
@@ -128,8 +126,6 @@ def main():
     print("   sumicos avaliados com <= 2,6 s: %d de %d" % (int(np.sum(gap_dur <= 2.6)), len(gaps)))
     print("   frames que mudam ao desligar   : %d (jogo todo) | %d (janela publica)"
           % (int(np.sum(com != sem)), int(np.sum(com[11185:18685] != sem[11185:18685]))))
-    print("   spellF1 publico com / sem      : %.4f / %.4f  (so checagem)"
-          % (pm.evaluate(gt, pm.label_codes(com))["spell_f1_mean"], pm.evaluate(gt, pm.label_codes(sem))["spell_f1_mean"]))
 
     # ---------- 1. atividade dos jogadores ----------
     txt = os.path.join(oficial, "data", "tactical", "BAR-ATH_tactical_atd.txt")

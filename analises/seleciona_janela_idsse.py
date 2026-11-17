@@ -43,35 +43,27 @@ ATUAL = (75, 1.5)
 
 
 def carregar(match, HOME, AWAY, NOBODY):
-    """codes (nearest-player por frame), gabarito H/A/D, mascara de bola morta."""
-    from kloppy import sportec
-    tr = sportec.load_open_tracking_data(match_id=match, limit=None, only_alive=False)
-    home, away = tr.metadata.teams[0], tr.metadata.teams[1]
-    n = len(tr.frames)
+    """codes (nearest-player por frame), gabarito H/A/D, mascara de bola morta.
+
+    Le do cache de analises/cache_idsse.py (um jogo por vez, sem estourar a memoria). O calculo
+    e o mesmo da versao que lia o kloppy direto: jogador mais perto da bola, em metros."""
+    import cache_idsse
+    if not os.path.exists(cache_idsse.caminho(match)):
+        cache_idsse.salvar(match)
+    g = cache_idsse.carregar(match)
+    ball, H, A = g["ball"], g["home"], g["away"]
+    n = len(ball)
+    dh = np.nanmin(np.linalg.norm(H - ball[:, None, :], axis=2), axis=1) if H.shape[1] else np.full(n, np.inf)
+    da = np.nanmin(np.linalg.norm(A - ball[:, None, :], axis=2), axis=1) if A.shape[1] else np.full(n, np.inf)
+    dh, da = np.nan_to_num(dh, nan=np.inf), np.nan_to_num(da, nan=np.inf)
     codes = np.full(n, NOBODY, dtype=np.int64)
+    tem = np.isfinite(ball[:, 0]) & (np.isfinite(dh) | np.isfinite(da))
+    codes[tem & (dh <= da)] = HOME
+    codes[tem & (da < dh)] = AWAY
+    morto = g["dead"].astype(bool)
     gt = np.full(n, "D", dtype="<U1")
-    morto = np.zeros(n, dtype=bool)
-    for i, fr in enumerate(tr.frames):
-        if "DEAD" in str(getattr(fr, "ball_state", "")).upper():
-            morto[i] = True
-        else:
-            bot = getattr(fr, "ball_owning_team", None)
-            gt[i] = "H" if bot == home else ("A" if bot == away else "D")
-        bc = getattr(fr, "ball_coordinates", None)
-        bx, by = (getattr(bc, "x", None), getattr(bc, "y", None)) if bc is not None else (None, None)
-        if bx is None or by is None:
-            continue
-        bx, by = bx * PITCH_X, by * PITCH_Y
-        melhor, time_ = None, NOBODY
-        for player, pt in (getattr(fr, "players_coordinates", None) or {}).items():
-            px, py = getattr(pt, "x", None), getattr(pt, "y", None)
-            if px is None or py is None:
-                continue
-            d = (px * PITCH_X - bx) ** 2 + (py * PITCH_Y - by) ** 2
-            if melhor is None or d < melhor:
-                melhor, time_ = d, (HOME if player.team == home else AWAY)
-        codes[i] = time_
-    gt[morto] = "D"
+    gt[(~morto) & (g["owner"] == 1)] = "H"
+    gt[(~morto) & (g["owner"] == 2)] = "A"
     return codes, gt, morto
 
 
