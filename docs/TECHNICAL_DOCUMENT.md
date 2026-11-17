@@ -55,6 +55,9 @@ graded frames. Of the 58 gaps decided by the players, 18 became D (416 s), 15 H 
 | Tactical video | no | no own detection or tracking in the final pipeline |
 | Public 5-minute ground truth | **only as a pipeline check** | see section 6 |
 
+An AI coding assistant (Claude) was used to help write and review code. No match data was shared
+with it: it only saw aggregate statistics computed locally and the open IDSSE data.
+
 Tried and dropped:
 - **A rule "long gap without set piece ≥ 18 s → D"** and a **"calm players → D" rule** (earlier
   versions v1.11–v1.12). Their thresholds had been chosen on the public window, which the rules
